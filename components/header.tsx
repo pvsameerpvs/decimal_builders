@@ -221,7 +221,9 @@ export default function Header() {
           <div className="ml-2 hidden lg:flex">
             <CitySelector />
           </div>
-          <ThemeToggle />
+          <div className="ml-2 hidden lg:flex">
+            <ThemeToggle />
+          </div>
         </div>
 
         {/* MOBILE/TABLET: CitySelector fixed at far right, same row */}
@@ -326,24 +328,35 @@ export default function Header() {
 
           {/* Bottom actions */}
           <div className="border-t bg-white px-3 py-2 dark:border-white/10 dark:bg-zinc-900">
-            <div className="flex gap-2">
-              <Link
-                href="/contact"
-                onClick={() => setOpen(false)}
-                className="inline-flex h-8 flex-1 items-center justify-center rounded-lg bg-brand px-2.5 text-xs font-bold text-white shadow-sm transition hover:opacity-90"
-              >
-                Build
-              </Link>
+            <div className="flex items-center gap-2">
+              {/* Primary actions (equal width) */}
+              <div className="grid flex-1 grid-cols-2 gap-2">
+                <Link
+                  href="/contact"
+                  onClick={() => setOpen(false)}
+                  className="inline-flex h-8 items-center justify-center rounded-lg bg-brand px-2.5 text-xs font-bold text-white shadow-sm transition hover:opacity-90"
+                >
+                  Build
+                </Link>
 
-              <Link
-                href={city.whatsapp}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex h-8  flex-1 items-center justify-center gap-1.5 rounded-lg text-xs ring-1 ring-black/10 transition hover:bg-zinc-50 dark:ring-white/10 dark:hover:bg-zinc-800/40"
-              >
-                <Phone className="h-3 w-3 pl-1 " />
-                <span className="truncate pr-1">{city.phone}</span>
-              </Link>
+                <Link
+                  href={city.whatsapp}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg text-xs ring-1 ring-black/10 transition hover:bg-zinc-50 dark:ring-white/10 dark:hover:bg-zinc-800/40"
+                >
+                  <Phone className="h-3 w-3 pl-1" />
+                  <span className="truncate pr-1">{city.phone}</span>
+                </Link>
+              </div>
+
+              {/* Compact theme toggle at far right */}
+              <ThemeToggle
+                aria-label="Toggle theme"
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 rounded-lg ring-1 ring-black/10 dark:ring-white/10"
+              />
             </div>
           </div>
         </div>

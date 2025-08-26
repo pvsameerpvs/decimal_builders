@@ -4,7 +4,14 @@ import { Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
 
-export default function ThemeToggle() {
+type ToggleProps = React.ComponentProps<typeof Button>;
+
+export default function ThemeToggle({
+  variant = "ghost",
+  size = "icon",
+  className = "",
+  ...props
+}: ToggleProps) {
   const { resolvedTheme, setTheme } = useTheme(); // use resolvedTheme to avoid undefined on first paint
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
