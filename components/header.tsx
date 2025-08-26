@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import clsx from "clsx";
 import {
   Menu,
@@ -31,6 +31,7 @@ import CitySelector from "@/components/geo/CitySelector";
 import NextImage from "next/image";
 import ThemeToggle from "./theme-toggle";
 import { useTheme } from "next-themes";
+import SubHeaderOffers from "./SubHeaderOffers";
 
 const NAV = [
   { label: "Our Projects", href: "/projects" },
@@ -89,6 +90,24 @@ export default function Header() {
   const desktopSrc = isDark
     ? "/logo-dark-desktop.svg"
     : "/logo-dark-desktop.svg";
+  const offers = [
+    {
+      text: "🌸 Onam Special: Flat 15% OFF on all Home Construction Packages",
+      href: "/contact",
+    },
+    {
+      text: "🏠 Book your dream home this Onam & get FREE site visits across Bangalore",
+      href: "/contact",
+    },
+    {
+      text: "🎁 Onam Gift: Complimentary interior design consultation on every package",
+      href: "/contact",
+    },
+    {
+      text: "🪔 Limited Time: Onam Festive Discounts valid till Thiruvonam day!",
+      href: "/contact",
+    },
+  ];
   return (
     <header
       className={clsx(
@@ -96,12 +115,14 @@ export default function Header() {
         scrolled ? "shadow-sm" : "shadow-none"
       )}
     >
+      <SubHeaderOffers offers={offers} mode="autoHide" />
+
       {/* 3-column grid: logo (start) / nav (center) / actions (end) */}
       <div
         className="
           container-max grid items-center
-          h-14 md:h-16 lg:h-20
-          grid-cols-[auto_1fr_auto]
+          h-14 md:h-18 lg:h-20
+        
           gap-x-2 md:gap-x-4 lg:gap-x-6
         "
       >
