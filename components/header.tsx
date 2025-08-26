@@ -30,6 +30,7 @@ import { useCity } from "@/app/hooks/useCity";
 import CitySelector from "@/components/geo/CitySelector";
 import NextImage from "next/image";
 import ThemeToggle from "./theme-toggle";
+import { useTheme } from "next-themes";
 
 const NAV = [
   { label: "Our Projects", href: "/projects" },
@@ -58,6 +59,9 @@ export default function Header() {
   const [scrolled, setScrolled] = useState(false);
   const pathname = usePathname();
   const { city } = useCity();
+  const { resolvedTheme } = useTheme(); // respects your theme button
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 4);
@@ -73,6 +77,18 @@ export default function Header() {
     return match?.href ?? null;
   }, [pathname]);
 
+  if (!mounted) {
+    // Avoid hydration mismatch—render nothing until theme is known
+    return null;
+  }
+
+  const isDark = resolvedTheme === "dark";
+
+  // Use YOUR exact files
+  const mobileSrc = isDark ? "/logo-dark-mobile.png" : "/logo-light-mobile.png";
+  const desktopSrc = isDark
+    ? "/logo-dark-desktop.svg"
+    : "/logo-dark-desktop.svg";
   return (
     <header
       className={clsx(
@@ -104,26 +120,15 @@ export default function Header() {
             aria-label="Decimal Builders — Home"
             className="group flex min-w-0 items-center"
           >
-            {/* Mobile / tablet (<= md): alt logo */}
+            {/* Desktop (>= md) */}
             <NextImage
-              src="/logoo.svg"
+              src={desktopSrc}
               alt="Decimal Builders logo"
               width={160}
               height={40}
               priority
-              className="h-8 w-auto select-none md:hidden"
-              sizes="(max-width: 767px) 128px"
-            />
-
-            {/* Desktop (>= md): main logo */}
-            <NextImage
-              src="/logo.svg"
-              alt="Decimal Builders logo"
-              width={160}
-              height={40}
-              priority
-              className="hidden h-8 w-auto select-none md:block md:h-9 lg:h-10"
               sizes="(min-width: 768px) 160px"
+              className="hidden h-8 w-auto select-none md:block md:h-9 lg:h-10"
             />
           </Link>
         </div>
@@ -225,7 +230,16 @@ export default function Header() {
             <ThemeToggle />
           </div>
         </div>
-
+        {/* Mobile / tablet (<= md) */}
+        <NextImage
+          src={mobileSrc}
+          alt="Decimal Builders logo"
+          width={160}
+          height={40}
+          priority
+          sizes="(max-width: 767px) 128px"
+          className="h-8 w-auto select-none justify-self-center pl-3 md:hidden"
+        />
         {/* MOBILE/TABLET: CitySelector fixed at far right, same row */}
         <div className="col-start-3 row-start-1 justify-self-end md:hidden">
           <CitySelector />
@@ -238,7 +252,7 @@ export default function Header() {
           {/* Top bar with logo */}
           <div className="flex items-center justify-between border-b px-4 py-3 dark:border-white/10">
             <NextImage
-              src="/logo.svg"
+              src={desktopSrc}
               alt="Decimal Builders logo"
               width={140}
               height={36}

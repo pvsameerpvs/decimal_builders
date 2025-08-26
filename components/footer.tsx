@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useMemo } from "react";
 import { useCity } from "@/app/hooks/useCity";
+import NextImage from "next/image";
 import {
   Instagram,
   Youtube,
@@ -67,8 +68,15 @@ export default function Footer() {
           {/* Brand + blurb */}
           <div>
             <div className="mb-3 flex items-center gap-2">
-              <div className="h-8 w-8 rounded-lg brand-bg shadow-sm ring-1 ring-black/10 dark:ring-white/10" />
-              <span className="text-lg font-extrabold">Decimal Builders</span>
+              <NextImage
+                src="/logo-dark-desktop.svg"
+                alt="Decimal Builders logo"
+                width={160}
+                height={40}
+                priority
+                className="h-5 w-auto select-none md:h-5 lg:h-10"
+                sizes="(min-width: 768px) 160px"
+              />
             </div>
             <p className="max-w-sm text-sm text-zinc-600 dark:text-zinc-300">
               Full-service construction across India (with Dubai ops). Turnkey
