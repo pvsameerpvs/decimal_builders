@@ -1,114 +1,108 @@
+// app/data/calc/customPricing.ts
 import { DECIMAL_PACKAGES, type PackageName } from "@/app/data/decimalPackages";
 import { CUSTOM_ADDONS, type Addon } from "@/app/data/customAddons";
 
 export type BuilderState = {
   base: PackageName;
   builtUpSqft: number;
-  gstPct: number; // e.g. 18
+  openAreaSqft: number;
   selectedIds: string[];
 };
 
 export type BuilderBreakdown = {
   baseCost: number;
   addonsCost: number;
-  gst: number;
   total: number;
   lineItems: Array<{ id: string; title: string; cost: number }>;
 };
 
 export function findBase(pkg: PackageName) {
-  const p = DECIMAL_PACKAGES.find((x) => x.name === pkg)!;
-  return p;
+  return DECIMAL_PACKAGES.find((x) => x.name === pkg)!;
 }
 
 export function findAddon(id: string): Addon | undefined {
   return CUSTOM_ADDONS.find((x) => x.id === id);
 }
 
-export function calcAddonCost(
+function splitAreas(builtUp: number, open: number) {
+  const safeOpen = Math.min(Math.max(0, open), Math.max(0, builtUp));
+  const covered = Math.max(0, builtUp - safeOpen);
+  const effective = covered + safeOpen * 0.65; // for per-sqft items
+  return { builtUp, covered, open: safeOpen, effective };
+}
+
+// Allowance rules:
+//  - flooringLivingKitchen -> FULL CLOSED area (diff × closed)
+//  - flooringParking       -> OPEN area only (diff × open), 0 if open == 0
+//  - flooringStairs        -> FIXED 10% of BUILT-UP (diff × 0.10 × builtUp)
+//  - others                -> CLOSED area × share
+// Simple per_sqft          -> EFFECTIVE area × share
+// Simple fixed             -> fixed amount
+function calcAddonCost(
   addon: Addon,
   basePkg: ReturnType<typeof findBase>,
-  builtUpSqft: number
+  areas: { builtUp: number; covered: number; open: number; effective: number }
 ): number {
   if (addon.kind === "allowance") {
-    // Δ = (target - base allowance) × (built-up × share)
     const baseRate = basePkg.allowances[addon.allowanceKey] ?? 0;
     const delta = addon.targetRate - baseRate;
-    const area = builtUpSqft * addon.share;
-    return Math.round(delta * area);
+
+    if (addon.allowanceKey === "flooringParking") {
+      if (areas.open <= 0) return 0;
+      return Math.round(delta * areas.open);
+    }
+
+    if (addon.allowanceKey === "flooringLivingKitchen") {
+      return Math.round(delta * areas.covered);
+    }
+
+    if (addon.allowanceKey === "flooringStairs") {
+      const stairArea = Math.round(areas.builtUp * 0.10); // exactly 10% of built-up
+      return Math.round(delta * stairArea);
+    }
+
+    const share = addon.share ?? 1;
+    return Math.round(delta * areas.covered * share);
   }
 
-  // simple modes
   if (addon.mode === "per_sqft") {
     const share = addon.share ?? 1;
-    return Math.round(addon.amount * builtUpSqft * share);
+    return Math.round(addon.amount * areas.effective * share);
   }
+
   if (addon.mode === "fixed") {
     return Math.round(addon.amount);
   }
-  if (addon.mode === "percent") {
-    // percent is applied on base cost later (handled in calcTotal)
-    return 0;
-  }
+
   return 0;
 }
 
 export function calcTotal(state: BuilderState): BuilderBreakdown {
   const base = findBase(state.base);
-  const built = Math.max(0, state.builtUpSqft);
-  const baseCost = Math.round(base.ratePerSqft * built);
+  const { builtUp, covered, open, effective } = splitAreas(
+    state.builtUpSqft,
+    state.openAreaSqft
+  );
+
+  // Base: covered @100% + open @65%
+  const baseCost =
+    Math.round(base.ratePerSqft * covered) +
+    Math.round(base.ratePerSqft * open * 0.65);
 
   let addonsCost = 0;
   const lineItems: BuilderBreakdown["lineItems"] = [];
 
-  // First pass: additive add-ons (allowance/simple except percent)
   for (const id of state.selectedIds) {
     const addon = findAddon(id);
     if (!addon) continue;
-    if (addon.kind === "simple" && addon.mode === "percent") {
-      // skip here; percent handled after base+additives
-      continue;
-    }
-    const cost = calcAddonCost(addon, base, built);
+    const cost = calcAddonCost(addon, base, { builtUp, covered, open, effective });
     if (cost !== 0) {
       addonsCost += cost;
       lineItems.push({ id, title: addon.title, cost });
     }
   }
 
-  // Percent add-ons
-  let percentUps = 0;
-  for (const id of state.selectedIds) {
-    const addon = findAddon(id);
-    if (!addon) continue;
-    if (addon.kind === "simple" && addon.mode === "percent") {
-      percentUps += addon.amount;
-      lineItems.push({
-        id,
-        title: addon.title,
-        cost: Math.round(((baseCost + addonsCost) * addon.amount) / 100),
-      });
-    }
-  }
-  const percentCost = Math.round(((baseCost + addonsCost) * percentUps) / 100);
-  const preTax = baseCost + addonsCost + percentCost;
+  const total = baseCost + addonsCost;
 
-  const gst = Math.round((preTax * Math.max(0, state.gstPct)) / 100);
-  const total = preTax + gst;
-
-  // Replace the percent placeholder costs with actual amount
-  if (percentUps > 0) {
-    // recompute the last appended percent items to exact value
-    let running = baseCost + addonsCost;
-    for (let i = 0; i < lineItems.length; i++) {
-      const add = findAddon(lineItems[i].id);
-      if (add?.kind === "simple" && add.mode === "percent") {
-        const c = Math.round((running * add.amount) / 100);
-        lineItems[i].cost = c;
-        running += c;
-      }
-    }
-  }
-
-  return { baseCost, addonsCost: preTax - baseCost, gst, total, lineItems };
+  return { baseCost, addonsCost, total, lineItems };
 }

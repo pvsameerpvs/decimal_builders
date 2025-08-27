@@ -1,8 +1,9 @@
+// components/custom-builder/FeatureCard.tsx
 "use client";
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { GripVertical, Plus, Trash2 } from "lucide-react";
+import { Trash2, Plus } from "lucide-react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 

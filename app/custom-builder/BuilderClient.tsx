@@ -1,3 +1,4 @@
+// components/custom-builder/BuilderClient.tsx
 "use client";
 
 import { useMemo, useState } from "react";
@@ -36,7 +37,7 @@ export default function BuilderClient() {
   const [state, setState] = useState<BuilderState>({
     base: "Enhanced",
     builtUpSqft: 2400,
-    gstPct: 18,
+    openAreaSqft: 0,
     selectedIds: [],
   });
 
@@ -45,7 +46,6 @@ export default function BuilderClient() {
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
-  // Prevent conflicting selections
   const available = useMemo(() => {
     const selected = new Set(state.selectedIds);
     const conflicts = new Set<string>();
@@ -60,6 +60,13 @@ export default function BuilderClient() {
 
   const basePkg = findBase(state.base);
   const breakdown = calcTotal(state);
+
+  const openSqft = Math.min(
+    Math.max(0, state.openAreaSqft),
+    Math.max(0, state.builtUpSqft)
+  );
+  const coveredSqft = Math.max(0, state.builtUpSqft - openSqft);
+  const effectiveSqft = coveredSqft + openSqft * 0.65;
 
   const inr = (n: number) => n.toLocaleString("en-IN");
 
@@ -135,24 +142,36 @@ export default function BuilderClient() {
                 setState((s) => ({
                   ...s,
                   builtUpSqft: Math.max(0, Number(e.target.value)),
+                  openAreaSqft: Math.min(
+                    Math.max(0, s.openAreaSqft),
+                    Math.max(0, Number(e.target.value))
+                  ),
                 }))
               }
             />
           </div>
 
           <div>
-            <div className="mb-1 text-sm font-medium">GST (%)</div>
+            <div className="mb-1 text-sm font-medium">
+              Open area (sq ft) — balcony/utility/parking
+            </div>
             <Input
               type="number"
               inputMode="numeric"
-              value={state.gstPct}
+              value={state.openAreaSqft}
               onChange={(e) =>
                 setState((s) => ({
                   ...s,
-                  gstPct: Math.max(0, Number(e.target.value)),
+                  openAreaSqft: Math.min(
+                    Math.max(0, Number(e.target.value)),
+                    Math.max(0, s.builtUpSqft)
+                  ),
                 }))
               }
             />
+            <div className="mt-1 text-[11px] text-zinc-500">
+              Open area is charged at <strong>65%</strong> of package rate.
+            </div>
           </div>
         </div>
       </Card>
@@ -170,8 +189,15 @@ export default function BuilderClient() {
                 title={a.title}
                 description={a.description}
                 category={a.category}
-                // rough impact preview:
-                impact={previewImpact(a, basePkg, state.builtUpSqft)}
+                // preview mirrors calc rules
+                impact={previewImpact(
+                  a,
+                  basePkg,
+                  state.builtUpSqft,
+                  coveredSqft,
+                  openSqft,
+                  effectiveSqft
+                )}
                 mode="available"
                 onAdd={() => add(a.id)}
               />
@@ -216,7 +242,14 @@ export default function BuilderClient() {
                       title={a.title}
                       description={a.description}
                       category={a.category}
-                      impact={previewImpact(a, basePkg, state.builtUpSqft)}
+                      impact={previewImpact(
+                        a,
+                        basePkg,
+                        state.builtUpSqft,
+                        coveredSqft,
+                        openSqft,
+                        effectiveSqft
+                      )}
                       mode="selected"
                       onRemove={() => remove(id)}
                     />
@@ -237,7 +270,6 @@ export default function BuilderClient() {
       <PriceSummary
         baseCost={breakdown.baseCost}
         addonsCost={breakdown.addonsCost}
-        gst={breakdown.gst}
         total={breakdown.total}
       />
 
@@ -249,6 +281,7 @@ export default function BuilderClient() {
             const params = new URLSearchParams({
               base: state.base,
               area: String(state.builtUpSqft),
+              open: String(state.openAreaSqft),
               addons: state.selectedIds.join(","),
               estimate: String(breakdown.total),
             }).toString();
@@ -263,7 +296,7 @@ export default function BuilderClient() {
             setState({
               base: "Enhanced",
               builtUpSqft: 2400,
-              gstPct: 18,
+              openAreaSqft: 0,
               selectedIds: [],
             })
           }
@@ -275,34 +308,66 @@ export default function BuilderClient() {
   );
 }
 
-// quick text impact preview (approx)
 function previewImpact(
-  addon: ReturnType<typeof findAddon> extends (...args: any) => infer R
-    ? R
-    : any,
+  addon: any,
   basePkg: any,
-  builtUpSqft: number
+  builtUpSqft: number,
+  coveredSqft: number,
+  openSqft: number,
+  effectiveSqft: number
 ) {
   if (!addon) return undefined;
+
   if (addon.kind === "allowance") {
     const baseRate = basePkg.allowances[addon.allowanceKey] ?? 0;
     const delta = addon.targetRate - baseRate;
-    const cost = Math.round(delta * builtUpSqft * addon.share);
+
+    if (addon.allowanceKey === "flooringParking") {
+      if (openSqft <= 0) return undefined;
+      const cost = Math.round(delta * openSqft);
+      return `${cost > 0 ? "+" : "–"} ₹ ${Math.abs(cost).toLocaleString(
+        "en-IN"
+      )} (approx)`;
+    }
+
+    if (addon.allowanceKey === "flooringLivingKitchen") {
+      const cost = Math.round(delta * coveredSqft);
+      if (cost === 0) return undefined;
+      return `${cost > 0 ? "+" : "–"} ₹ ${Math.abs(cost).toLocaleString(
+        "en-IN"
+      )} (approx)`;
+    }
+
+    if (addon.allowanceKey === "flooringStairs") {
+      const stairArea = Math.round(builtUpSqft * 0.1);
+      const cost = Math.round(delta * stairArea);
+      if (cost === 0) return undefined;
+      return `${cost > 0 ? "+" : "–"} ₹ ${Math.abs(cost).toLocaleString(
+        "en-IN"
+      )} (approx)`;
+    }
+
+    const share = addon.share ?? 1;
+    const cost = Math.round(delta * coveredSqft * share);
     if (cost === 0) return undefined;
     return `${cost > 0 ? "+" : "–"} ₹ ${Math.abs(cost).toLocaleString(
       "en-IN"
     )} (approx)`;
   }
+
   if (addon.mode === "per_sqft") {
     const share = addon.share ?? 1;
-    const cost = Math.round(addon.amount * builtUpSqft * share);
+    const cost = Math.round(addon.amount * effectiveSqft * share);
     return `+ ₹ ${cost.toLocaleString("en-IN")} (approx)`;
   }
+
   if (addon.mode === "fixed") {
     return `+ ₹ ${Math.round(addon.amount).toLocaleString("en-IN")} (approx)`;
   }
+
   if (addon.mode === "percent") {
     return `+ ${addon.amount}% on base`;
   }
+
   return undefined;
 }

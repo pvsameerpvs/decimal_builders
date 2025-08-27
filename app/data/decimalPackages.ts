@@ -1,5 +1,4 @@
-// data/decimalPackages.ts
-
+// app/data/decimalPackages.ts
 export type PackageName = "Essential" | "Enhanced" | "Elite";
 
 export type DecimalPackage = {
@@ -8,7 +7,6 @@ export type DecimalPackage = {
   img: string;
   pdf: string;
   badge?: string;
-  // Key allowances & budgets pulled directly from PDFs
   allowances: {
     flooringLivingKitchen: number; // ₹/sq ft
     flooringBalconyPassage: number; // ₹/sq ft
@@ -20,20 +18,20 @@ export type DecimalPackage = {
     mainDoorBudget: number; // ₹
     bedroomDoorBudget: number; // ₹
   };
-  windowsOpeningPct: number; // % of built-up area
+  windowsOpeningPct: number;
   windowsType: string;
   railing: string;
-  grillsRate: number; // ₹/sq ft
+  grillsRate: number;
   sumpLiters: number;
   ohtLiters: number;
   ohtBrand?: string;
-  notes: string[]; // extra bullets
+  notes: string[];
 };
 
 export const DECIMAL_PACKAGES: DecimalPackage[] = [
   {
     name: "Essential",
-    ratePerSqft: 1810,
+    ratePerSqft: 1860,
     img: "/images/Cover.webp",
     pdf: "/media/packages/ESSENTIAL-PACKAGE-DECIMAL-BUILDERS.pdf",
     badge: "Popular",
@@ -63,7 +61,7 @@ export const DECIMAL_PACKAGES: DecimalPackage[] = [
   },
   {
     name: "Enhanced",
-    ratePerSqft: 2050,
+    ratePerSqft: 2110,
     img: "/images/Cover.webp",
     pdf: "/media/packages/ENHANCED-PACKAGE-DECIMAL-BUILDERS.pdf",
     badge: "Best value",
@@ -93,7 +91,7 @@ export const DECIMAL_PACKAGES: DecimalPackage[] = [
   },
   {
     name: "Elite",
-    ratePerSqft: 2450,
+    ratePerSqft: 2510,
     img: "/images/Cover.webp",
     pdf: "/media/packages/ELITE-PACKAGE-DECIMAL-BUILDERS.pdf",
     badge: "Premium",
