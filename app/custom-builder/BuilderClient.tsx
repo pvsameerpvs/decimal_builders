@@ -5,33 +5,40 @@ import { useMemo, useState } from "react";
 import { DECIMAL_PACKAGES, type PackageName } from "@/app/data/decimalPackages";
 import { CUSTOM_ADDONS } from "@/app/data/customAddons";
 
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 
 import {
-  DndContext,
-  closestCenter,
   PointerSensor,
   KeyboardSensor,
   useSensor,
   useSensors,
-  DragEndEvent,
 } from "@dnd-kit/core";
-import {
-  SortableContext,
-  verticalListSortingStrategy,
-  arrayMove,
-  sortableKeyboardCoordinates,
-} from "@dnd-kit/sortable";
+import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
+import { arrayMove } from "@dnd-kit/sortable";
+
 import {
   BuilderState,
   calcTotal,
   findAddon,
   findBase,
 } from "@/app/data/calc/customPricing";
-import FeatureCard from "@/components/custom-builder/FeatureCard";
+
+import BasePackageSelector from "@/components/custom-builder/BasePackageSelector";
+import BuiltUpInput from "@/components/custom-builder/BuiltUpInput";
+import OpenAreaInput from "@/components/custom-builder/OpenAreaInput";
+import UpgradesAvailable from "@/components/custom-builder/UpgradesAvailable";
+import SelectedUpgrades from "@/components/custom-builder/SelectedUpgrades";
 import PriceSummary from "@/components/custom-builder/PriceSummary";
+import CTAButtons from "@/components/custom-builder/CTAButtons";
+import previewImpact from "@/app/data/calc/previewImpact";
+import { Wrench } from "lucide-react";
+import { Separator } from "@radix-ui/react-separator";
 
 export default function BuilderClient() {
   const [state, setState] = useState<BuilderState>({
@@ -68,8 +75,6 @@ export default function BuilderClient() {
   const coveredSqft = Math.max(0, state.builtUpSqft - openSqft);
   const effectiveSqft = coveredSqft + openSqft * 0.65;
 
-  const inr = (n: number) => n.toLocaleString("en-IN");
-
   function add(id: string) {
     setState((s) => ({ ...s, selectedIds: [...s.selectedIds, id] }));
   }
@@ -80,7 +85,7 @@ export default function BuilderClient() {
     }));
   }
 
-  function onDragEnd(e: DragEndEvent) {
+  function onDragEnd(e: any) {
     const { active, over } = e;
     if (!over || active.id === over.id) return;
     const oldIdx = state.selectedIds.indexOf(String(active.id));
@@ -106,164 +111,76 @@ export default function BuilderClient() {
       </header>
 
       {/* Controls */}
-      <Card className="p-4 md:p-6">
-        <div className="grid gap-4 md:grid-cols-3">
-          <div>
-            <div className="mb-1 text-sm font-medium">Base package</div>
-            <div className="flex flex-wrap gap-2">
-              {DECIMAL_PACKAGES.map((p) => (
-                <Button
-                  key={p.name}
-                  variant={state.base === p.name ? "default" : "outline"}
-                  className={
-                    state.base === p.name
-                      ? "bg-[#958f39] hover:bg-[#7d782f]"
-                      : ""
-                  }
-                  onClick={() =>
-                    setState((s) => ({ ...s, base: p.name as PackageName }))
-                  }
-                >
-                  {p.name} • ₹ {inr(p.ratePerSqft)}/sq ft
-                </Button>
-              ))}
-            </div>
-          </div>
+      <Card className="overflow-hidden border shadow-sm">
+        {/* Header */}
+        <CardHeader className="bg-gradient-to-r from-zinc-50 to-white dark:from-zinc-900/40 dark:to-zinc-900/10">
+          <CardTitle className="flex items-center gap-2 text-base md:text-lg">
+            <Wrench className="h-4 w-4" />
+            Build your package
+          </CardTitle>
+          <CardDescription className="text-xs md:text-sm">
+            Choose a base package and enter built-up + open areas (in sq ft).
+          </CardDescription>
+        </CardHeader>
 
-          <div>
-            <div className="mb-1 text-sm font-medium">
-              Built-up area (sq ft)
+        {/* Content */}
+        <CardContent className="p-4 md:p-6">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {/* Give the package selector a bit more width on tablets */}
+            <div className="sm:col-span-2 lg:col-span-1">
+              <BasePackageSelector
+                value={state.base}
+                onChange={(pkg) =>
+                  setState((s) => ({ ...s, base: pkg as PackageName }))
+                }
+              />
             </div>
-            <Input
-              type="number"
-              inputMode="numeric"
+
+            <BuiltUpInput
               value={state.builtUpSqft}
-              onChange={(e) =>
+              openAreaSqft={state.openAreaSqft}
+              onChange={(nextBuilt, nextOpenClamped) =>
                 setState((s) => ({
                   ...s,
-                  builtUpSqft: Math.max(0, Number(e.target.value)),
-                  openAreaSqft: Math.min(
-                    Math.max(0, s.openAreaSqft),
-                    Math.max(0, Number(e.target.value))
-                  ),
+                  builtUpSqft: nextBuilt,
+                  openAreaSqft: nextOpenClamped,
                 }))
               }
             />
-          </div>
 
-          <div>
-            <div className="mb-1 text-sm font-medium">
-              Open area (sq ft) — balcony/utility/parking
-            </div>
-            <Input
-              type="number"
-              inputMode="numeric"
+            <OpenAreaInput
               value={state.openAreaSqft}
-              onChange={(e) =>
-                setState((s) => ({
-                  ...s,
-                  openAreaSqft: Math.min(
-                    Math.max(0, Number(e.target.value)),
-                    Math.max(0, s.builtUpSqft)
-                  ),
-                }))
-              }
+              builtUpSqft={state.builtUpSqft}
+              onChange={(v) => setState((s) => ({ ...s, openAreaSqft: v }))}
             />
-            <div className="mt-1 text-[11px] text-zinc-500">
-              Open area is charged at <strong>65%</strong> of package rate.
-            </div>
           </div>
-        </div>
+        </CardContent>
       </Card>
 
       {/* Two-column layout */}
       <div className="grid gap-6 md:grid-cols-2">
-        {/* Available add-ons */}
-        <section className="space-y-3">
-          <div className="text-sm font-semibold">Available upgrades</div>
-          <div className="grid gap-2">
-            {available.map((a) => (
-              <FeatureCard
-                key={a.id}
-                id={a.id}
-                title={a.title}
-                description={a.description}
-                category={a.category}
-                // preview mirrors calc rules
-                impact={previewImpact(
-                  a,
-                  basePkg,
-                  state.builtUpSqft,
-                  coveredSqft,
-                  openSqft,
-                  effectiveSqft
-                )}
-                mode="available"
-                onAdd={() => add(a.id)}
-              />
-            ))}
-            {available.length === 0 && (
-              <div className="rounded-lg border p-3 text-sm text-zinc-500">
-                All compatible upgrades are selected.
-              </div>
-            )}
-          </div>
-        </section>
+        <UpgradesAvailable
+          available={available as any}
+          basePkg={basePkg}
+          builtUpSqft={state.builtUpSqft}
+          coveredSqft={coveredSqft}
+          openSqft={openSqft}
+          effectiveSqft={effectiveSqft}
+          onAdd={add}
+        />
 
-        {/* Selected add-ons (sortable) */}
-        <section className="space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="text-sm font-semibold">Selected upgrades</div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setState((s) => ({ ...s, selectedIds: [] }))}
-            >
-              Clear
-            </Button>
-          </div>
-
-          <DndContext
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragEnd={onDragEnd}
-          >
-            <SortableContext
-              items={state.selectedIds}
-              strategy={verticalListSortingStrategy}
-            >
-              <div className="grid gap-2">
-                {state.selectedIds.map((id) => {
-                  const a = findAddon(id)!;
-                  return (
-                    <FeatureCard
-                      key={id}
-                      id={id}
-                      title={a.title}
-                      description={a.description}
-                      category={a.category}
-                      impact={previewImpact(
-                        a,
-                        basePkg,
-                        state.builtUpSqft,
-                        coveredSqft,
-                        openSqft,
-                        effectiveSqft
-                      )}
-                      mode="selected"
-                      onRemove={() => remove(id)}
-                    />
-                  );
-                })}
-                {state.selectedIds.length === 0 && (
-                  <div className="rounded-lg border p-3 text-sm text-zinc-500">
-                    Drag to reorder after you add items. Reordering is optional.
-                  </div>
-                )}
-              </div>
-            </SortableContext>
-          </DndContext>
-        </section>
+        <SelectedUpgrades
+          selectedIds={state.selectedIds}
+          basePkg={basePkg}
+          builtUpSqft={state.builtUpSqft}
+          coveredSqft={coveredSqft}
+          openSqft={openSqft}
+          effectiveSqft={effectiveSqft}
+          sensors={sensors as any}
+          onDragEnd={onDragEnd}
+          onRemove={remove}
+          onClear={() => setState((s) => ({ ...s, selectedIds: [] }))}
+        />
       </div>
 
       {/* Pricing */}
@@ -274,100 +191,18 @@ export default function BuilderClient() {
       />
 
       {/* CTA */}
-      <div className="flex flex-wrap items-center gap-2">
-        <Button
-          className="bg-[#958f39] hover:bg-[#7d782f] text-white"
-          onClick={() => {
-            const params = new URLSearchParams({
-              base: state.base,
-              area: String(state.builtUpSqft),
-              open: String(state.openAreaSqft),
-              addons: state.selectedIds.join(","),
-              estimate: String(breakdown.total),
-            }).toString();
-            window.location.href = `/contact?${params}`;
-          }}
-        >
-          Request Decimal Builders Quote
-        </Button>
-        <Button
-          variant="outline"
-          onClick={() =>
-            setState({
-              base: "Enhanced",
-              builtUpSqft: 2400,
-              openAreaSqft: 0,
-              selectedIds: [],
-            })
-          }
-        >
-          Reset
-        </Button>
-      </div>
+      <CTAButtons
+        state={state}
+        estimate={breakdown.total}
+        onReset={() =>
+          setState({
+            base: "Enhanced",
+            builtUpSqft: 2400,
+            openAreaSqft: 0,
+            selectedIds: [],
+          })
+        }
+      />
     </div>
   );
-}
-
-function previewImpact(
-  addon: any,
-  basePkg: any,
-  builtUpSqft: number,
-  coveredSqft: number,
-  openSqft: number,
-  effectiveSqft: number
-) {
-  if (!addon) return undefined;
-
-  if (addon.kind === "allowance") {
-    const baseRate = basePkg.allowances[addon.allowanceKey] ?? 0;
-    const delta = addon.targetRate - baseRate;
-
-    if (addon.allowanceKey === "flooringParking") {
-      if (openSqft <= 0) return undefined;
-      const cost = Math.round(delta * openSqft);
-      return `${cost > 0 ? "+" : "–"} ₹ ${Math.abs(cost).toLocaleString(
-        "en-IN"
-      )} (approx)`;
-    }
-
-    if (addon.allowanceKey === "flooringLivingKitchen") {
-      const cost = Math.round(delta * coveredSqft);
-      if (cost === 0) return undefined;
-      return `${cost > 0 ? "+" : "–"} ₹ ${Math.abs(cost).toLocaleString(
-        "en-IN"
-      )} (approx)`;
-    }
-
-    if (addon.allowanceKey === "flooringStairs") {
-      const stairArea = Math.round(builtUpSqft * 0.1);
-      const cost = Math.round(delta * stairArea);
-      if (cost === 0) return undefined;
-      return `${cost > 0 ? "+" : "–"} ₹ ${Math.abs(cost).toLocaleString(
-        "en-IN"
-      )} (approx)`;
-    }
-
-    const share = addon.share ?? 1;
-    const cost = Math.round(delta * coveredSqft * share);
-    if (cost === 0) return undefined;
-    return `${cost > 0 ? "+" : "–"} ₹ ${Math.abs(cost).toLocaleString(
-      "en-IN"
-    )} (approx)`;
-  }
-
-  if (addon.mode === "per_sqft") {
-    const share = addon.share ?? 1;
-    const cost = Math.round(addon.amount * effectiveSqft * share);
-    return `+ ₹ ${cost.toLocaleString("en-IN")} (approx)`;
-  }
-
-  if (addon.mode === "fixed") {
-    return `+ ₹ ${Math.round(addon.amount).toLocaleString("en-IN")} (approx)`;
-  }
-
-  if (addon.mode === "percent") {
-    return `+ ${addon.amount}% on base`;
-  }
-
-  return undefined;
 }
