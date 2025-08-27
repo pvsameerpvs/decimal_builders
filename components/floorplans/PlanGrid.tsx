@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/card";
 import { BedDouble, Maximize2, Ruler, Layers, Compass } from "lucide-react";
 import ImageLightbox from "@/components/floorplans/ImageLightbox";
+import MediaChips from "@/components/floorplans/MediaChips";
 
 export type Plan = {
   id: string;
@@ -33,6 +34,12 @@ export type Plan = {
   budgetAED: number;
   vastu: boolean;
   tags: string[];
+  media?: {
+    design?: string[];
+    floorplan?: string[];
+    render3d?: string[];
+    pdf?: string[];
+  };
 };
 
 export default function PlanGrid({ plans }: { plans: Plan[] }) {
@@ -59,6 +66,7 @@ export default function PlanGrid({ plans }: { plans: Plan[] }) {
                 <Maximize2 className="h-4 w-4" />
               </button>
             </div>
+
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center justify-between">
                 <span className="truncate pr-2">{p.title}</span>
@@ -71,7 +79,10 @@ export default function PlanGrid({ plans }: { plans: Plan[] }) {
               <CardDescription className="text-[13px]">
                 {p.type} · {p.facing}
               </CardDescription>
+              {/* NEW: show media availability */}
+              <MediaChips media={p.media} />
             </CardHeader>
+
             <CardContent>
               <ul className="grid grid-cols-2 gap-2 text-xs text-zinc-700 dark:text-zinc-300">
                 <li className="flex items-center gap-2">
@@ -91,8 +102,13 @@ export default function PlanGrid({ plans }: { plans: Plan[] }) {
                 <div className="text-sm font-bold">
                   AED {p.budgetAED.toLocaleString()}
                 </div>
-                <Button size="sm" variant="outline" className="brand-border">
-                  Share
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="brand-border"
+                  onClick={() => setOpen(p)}
+                >
+                  Preview
                 </Button>
               </div>
             </CardContent>
